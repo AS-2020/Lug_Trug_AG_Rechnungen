@@ -45,13 +45,16 @@ namespace Lug_Trug_AG_Rechnungen.Models
         {
             //CultureInfo.CurrentUICulture = new CultureInfo("en-US", false);
 
+            string summemitkomma = rechnung.SummeRechnung.ToString();
+            string summemitpunkt = summemitkomma.Replace(',', '.');
+
             SqlConnection con = new SqlConnection(VERBINDUNG);
 
             con.Open();
             SqlCommand com = new SqlCommand();
 
             string sql = $"Insert into Rechnungen values ({rechnung.RechnungsNummer}, '{rechnung.DatumFaelligkeit}', '{rechnung.KundenNummer}', " + 
-                $"'{rechnung.SummeRechnung}', '{((rechnung.DatumBegleichung!=null)? $"{rechnung.DatumBegleichung}" : null)}')"; //Convert.ToDecimal(rechnung.SummeRechnung, System.Globalization.CultureInfo.CurrentCulture)
+                $"'{summemitpunkt}', '{((rechnung.DatumBegleichung!=null)? $"{rechnung.DatumBegleichung}" : null)}')"; //Convert.ToDecimal(rechnung.SummeRechnung, System.Globalization.CultureInfo.CurrentCulture)
 
             com = new SqlCommand(sql, con);
             SqlDataAdapter adapter = new SqlDataAdapter();
@@ -83,7 +86,8 @@ namespace Lug_Trug_AG_Rechnungen.Models
                 r.RechnungsNummer = (int)reader.GetValue(0);
                 r.DatumFaelligkeit = (DateTime)reader.GetValue(1);
                 r.KundenNummer = (int)reader.GetValue(2);
-                r.SummeRechnung = (double)reader.GetValue(3);
+                string summe = reader.GetValue(3).ToString();
+                r.SummeRechnung = double.Parse(summe);
                 r.DatumBegleichung = (DateTime)reader.GetValue(4);
                 DateTime falsch = new DateTime(1900, 1, 1);
                 if (r.DatumBegleichung == falsch.Date)
@@ -100,13 +104,16 @@ namespace Lug_Trug_AG_Rechnungen.Models
 
         public void Change(Rechnung r, bool[] geandert)
         {
+            string summemitkomma = r.SummeRechnung.ToString();
+            string summemitpunkt = summemitkomma.Replace(',', '.');
+
             SqlConnection con = new SqlConnection(VERBINDUNG);
 
             con.Open();
 
             string sql = $@"Update Rechnungen set {(geandert[0] ? $"DatumFaelligkeit = '{r.DatumFaelligkeit}'" : "")}{((geandert[0] && geandert[1] | geandert[2] | geandert[3]) ? "," : "")}" +
                 $"{(geandert[1] ? $"Kundennummer = '{r.KundenNummer}'" : "")}{((geandert[1] && geandert[2] | geandert[3]) ? "," : "")}" +
-                $"{ (geandert[2] ? $"Summe = '{r.SummeRechnung}'" : "")}{((geandert[2] && geandert[3]) ? "," : "")}" +
+                $"{ (geandert[2] ? $"Summe = '{summemitpunkt}'" : "")}{((geandert[2] && geandert[3]) ? "," : "")}" +
                 $"{ (geandert[3] ? $"DatumBegleichung = '{r.DatumBegleichung}'" : "")} where Rechnungsnummer = '{r.RechnungsNummer}'";
             SqlCommand com = new SqlCommand(sql, con);
             SqlDataAdapter adapter = new SqlDataAdapter();

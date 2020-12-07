@@ -28,6 +28,16 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Rechnungen"));
             }
         }
+        private ObservableCollection<Kunde> _kunden;
+        public ObservableCollection<Kunde> Kunden
+        {
+            get { return _kunden; }
+            set
+            {
+                _kunden = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Kunden"));
+            }
+        }
 
         private bool _rechnungsNummerTextBox;
         public bool RechnungsNummerTextBox
@@ -94,8 +104,8 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
             }
         }
 
-        private DateTime _datumFaelligkeit = DateTime.Now.Date;
-        public DateTime DatumFaelligkeit
+        private string _datumFaelligkeit = String.Empty;
+        public string DatumFaelligkeit
         {
             get { return _datumFaelligkeit; }
             set
@@ -114,8 +124,8 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("SummeRechnung"));
             }
         }
-        private DateTime? _datumBegleichung;
-        public DateTime? DatumBegleichung
+        private string _datumBegleichung;
+        public string DatumBegleichung
         {
             get { return _datumBegleichung; }
             set
@@ -136,7 +146,7 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
         public void Cancel(object o)
         {
             RechnungsNummer = 0;
-            DatumFaelligkeit = DateTime.Now;
+            DatumFaelligkeit = null;
             KundenNummer = 0;
             SummeRechnung = "";
             DatumBegleichung = null;
@@ -155,10 +165,10 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
             {
                 Rechnung r = SelectedRechnung.LastOrDefault<Rechnung>();
                 RechnungsNummer = r.RechnungsNummer;
-                DatumFaelligkeit = r.DatumFaelligkeit;
+                DatumFaelligkeit = r.DatumFaelligkeit.ToShortDateString();
                 KundenNummer = r.KundenNummer;
                 SummeRechnung = r.SummeRechnung.ToString();
-                DatumBegleichung = r.DatumBegleichung;
+                DatumBegleichung = r.DatumBegleichung.ToString();
                 AendernButton = true;
                 RechnungsNummerTextBox = true;
 
@@ -173,39 +183,58 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
 
         public MainVM()
         {
-            CultureInfo.CurrentUICulture = new CultureInfo("de-DE", false);
+            //CultureInfo.CurrentUICulture = new CultureInfo("de-DE", false);
+            //Kunden = new ObservableCollection<Kunde>(Kundenverwaltung.Instance.GetKunden().OrderBy(k => k.KundenNummer));
             Buchhaltung.Instance.Load();
+            Kundenverwaltung.Instance.Load();
             Rechnungen = new ObservableCollection<Rechnung>(Buchhaltung.Instance.GetRechnungen().OrderBy(r => r.RechnungsNummer));
 
             SaveCommand = new RelayCommand((o) =>
             {
                 Rechnung vorhanden = Buchhaltung.Instance.GetRechnungen().Find(r => r.RechnungsNummer == RechnungsNummer);
-                if (vorhanden == null && RechnungsNummer > 0 && KundenNummer > 0)
+                if (vorhanden == null && RechnungsNummer > 0 && KundenNummer > 0 && Kundenverwaltung.Instance.GetKunden().Find(k => k.KundenNummer == KundenNummer) != null)
                 {
-                    Rechnung r = new Rechnung()
+                    Rechnung r = new Rechnung();
+                    if (DateTime.TryParse(DatumBegleichung, out DateTime dasDatum))
                     {
-                        RechnungsNummer = RechnungsNummer,
-                        DatumFaelligkeit = DatumFaelligkeit,
-                        KundenNummer = KundenNummer,
-                        SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture),
-                        DatumBegleichung = DatumBegleichung
-                    };
-                    Buchhaltung.Instance.AddRechnung(r);
-                    Rechnungen.Add(r);
-                    Buchhaltung.Instance.Save(r);
-                    Cancel(o);
+                        r.RechnungsNummer = RechnungsNummer;
+                        r.DatumFaelligkeit = DateTime.Parse(DatumFaelligkeit);
+                        r.KundenNummer = KundenNummer;
+                        r.SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture);
+                        r.DatumBegleichung = dasDatum;
+                        Buchhaltung.Instance.AddRechnung(r);
+                        Rechnungen.Add(r);
+                        Buchhaltung.Instance.Save(r);
+                        Cancel(o);
+                    }
+                    else if (!DateTime.TryParse(DatumBegleichung, out DateTime nichts))
+                    {
+                        r.RechnungsNummer = RechnungsNummer;
+                        r.DatumFaelligkeit = DateTime.Parse(DatumFaelligkeit);
+                        r.KundenNummer = KundenNummer;
+                        r.SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture);
+                        r.DatumBegleichung = null;
+                        Buchhaltung.Instance.AddRechnung(r);
+                        Rechnungen.Add(r);
+                        Buchhaltung.Instance.Save(r);
+                        Cancel(o);
+                    }
                 }
                 else if (vorhanden != null)
                 {
                     MessageBox.Show("Rechnungsnummer existert bereits");
                 }
-                else if (RechnungsNummer <= 0 )
+                else if (RechnungsNummer <= 0)
                 {
                     MessageBox.Show("Rechnungsnummer muss größer als 0 sein");
                 }
                 else if (KundenNummer <= 0)
                 {
                     MessageBox.Show("Kundennummer muss größer als 0 sein");
+                }
+                else if (Kundenverwaltung.Instance.GetKunden().Find(k => k.KundenNummer == KundenNummer) == null)
+                {
+                    MessageBox.Show($"Es existiert kein Kunde mit der {KundenNummer}");
                 }
             });
 
@@ -237,17 +266,26 @@ namespace Lug_Trug_AG_Rechnungen.ViewModels
             ChangeCommand = new RelayCommand((o) =>
             {
                 Rechnung vorhanden = Buchhaltung.Instance.GetRechnungen().Find(r => r.RechnungsNummer == RechnungsNummer);
-                bool[] geandert = new bool[4] { false, false, false, false};
+                bool[] geandert = new bool[4] { false, false, false, false };
                 if (RechnungsNummer > 0 && KundenNummer > 0)
                 {
-                    Rechnung r = new Rechnung()
+                    Rechnung r = new Rechnung();
+                    if (DateTime.TryParse(DatumBegleichung, out DateTime dasDatum))
                     {
-                        RechnungsNummer = RechnungsNummer,
-                        DatumFaelligkeit = DatumFaelligkeit,
-                        KundenNummer = KundenNummer,
-                        SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture),
-                        DatumBegleichung = DatumBegleichung
-                    };
+                        r.RechnungsNummer = RechnungsNummer;
+                        r.DatumFaelligkeit = DateTime.Parse(DatumFaelligkeit);
+                        r.KundenNummer = KundenNummer;
+                        r.SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture);
+                        r.DatumBegleichung = dasDatum;
+                    }
+                    else if (!DateTime.TryParse(DatumBegleichung, out DateTime gehtehnicht))
+                    {
+                        r.RechnungsNummer = RechnungsNummer;
+                        r.DatumFaelligkeit = DateTime.Parse(DatumFaelligkeit);
+                        r.KundenNummer = KundenNummer;
+                        r.SummeRechnung = Convert.ToDouble(SummeRechnung, System.Globalization.CultureInfo.CurrentCulture);
+                        r.DatumBegleichung = null;
+                    }
                     if (r.DatumFaelligkeit != vorhanden.DatumFaelligkeit)
                     {
                         geandert[0] = true;

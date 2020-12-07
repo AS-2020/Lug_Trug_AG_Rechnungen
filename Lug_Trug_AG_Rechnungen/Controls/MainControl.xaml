@@ -76,7 +76,7 @@
                 <Button  Content="{Binding Sortieren}" Width="100" Margin="5" Command="{Binding SortCommand}"/>
                 <Button  Content="Rechnung auswählen" Width="100" Margin="5" Command="{Binding SelectCommand}"/>
                 <Button  Content="Suchen" Width="100" Margin="5" Command="{Binding SearchCommand}"/>
-                <TextBox TextAlignment="Left" Padding="10" VerticalAlignment="Top" Width="100" Text="{Binding KundenSuchen}"/>
+                <TextBox TextAlignment="Left" Padding="10" VerticalAlignment="Top" Width="100" Text="{Binding RechnungSuchen}"/>
             </StackPanel>
         </Grid>
     </Grid>
